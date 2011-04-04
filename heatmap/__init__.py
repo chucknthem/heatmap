@@ -72,9 +72,8 @@ class Heatmap:
         dot = self._buildDot(self.dotsize)
 
         img = Image.new('L', self.size, 'white')
-        if algo == "old":
-            for x,y in points:
-                img.paste(0, self._translate([x,y]), dot)
+        for x,y in points:
+            img.paste(0, self._translate([x,y]), dot)
 
         colors = colorschemes.schemes[scheme]
         img.save("bw.png", "PNG")
