@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='heatmap',
-      version='1.0',
+      version='1.1',
       description='Module to create heatmaps',
       author='Jeffrey J. Guy',
       author_email='jjg@case.edu',
