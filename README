@@ -1,3 +1,12 @@
+heatmap 1.1
+orig author: jjguy
+modified by: chucknthem
+
+This is a more efficient version of heatmap by jjguy. It's about 30 times faster than the original version 1.0
+
+
+The original readme is below:
+=============================================
 heatmap 1.0
 jjg@case.edu
 
