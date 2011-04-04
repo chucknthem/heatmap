@@ -1,4 +1,5 @@
-#heatmap.py v1.0 20091004
+# vim: ai ts=4 sts=4 et sw=4
+#heatmap.py v1.1 20110402
 from PIL import Image,ImageChops
 import os
 import random
@@ -29,9 +30,6 @@ class Heatmap:
     """
     Create heatmaps from a list of 2D coordinates.
     
-    Heatmap requires the Python Imaging Library. The way I'm using PIL is
-    almost atrocious.  I'm embarassed, but it works, albeit slowly.
-
     Coordinates autoscale to fit within the image dimensions, so if there are 
     anomalies or outliers in your dataset, results won't be what you expect. 
 
@@ -45,7 +43,7 @@ class Heatmap:
     def __init__(self):
         self.minXY = ()
         self.maxXY = ()
-
+    
     def heatmap(self, points, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic"):
         """
         points  -> an iterable list of tuples, where the contents are the 
@@ -73,17 +71,15 @@ class Heatmap:
         self.minXY, self.maxXY = self._ranges(points)
         dot = self._buildDot(self.dotsize)
 
-        img = Image.new('RGBA', self.size, 'white')
-        for x,y in points:
-            tmp = Image.new('RGBA', self.size, 'white')
-            tmp.paste( dot, self._translate([x,y]) )
-            img = ImageChops.multiply(img, tmp)
-
+        img = Image.new('L', self.size, 'white')
+        if algo == "old":
+            for x,y in points:
+                img.paste(0, self._translate([x,y]), dot)
 
         colors = colorschemes.schemes[scheme]
         img.save("bw.png", "PNG")
-        self._colorize(img, colors)
 
+        img = self._colorize(img, colors)
         img.save(fout, "PNG")
 
     def saveKML(self, kmlFile):
@@ -113,14 +109,15 @@ class Heatmap:
     def _buildDot(self, size):
         """ builds a temporary image that is plotted for 
             each point in the dataset"""
-        img = Image.new("RGB", (size,size), 'white')
+        img = Image.new("RGBA", (size,size), 'white')
         md = 0.5*math.sqrt( (size/2.0)**2 + (size/2.0)**2 )
-        for x in range(size):
-            for y in range(size):
+        for x in xrange(size):
+            for y in xrange(size):
                 d = math.sqrt( (x - size/2.0)**2 + (y - size/2.0)**2 )
                 rgbVal = int(200*d/md + 50)
-                rgb = (rgbVal, rgbVal, rgbVal)
-                img.putpixel((x,y), rgb)
+                rgba = (0,0,0, 255 - rgbVal)
+                img.putpixel((x,y), rgba)
+        img.save("lol.png", "PNG")
         return img
 
     def _colorize(self, img, colors):
@@ -128,17 +125,21 @@ class Heatmap:
             image densities  """
         finalVals = {}
         w,h = img.size
-        for x in range(w):
-            for y in range(h):
-                pix = img.getpixel((x,y))
-                rgba = list(colors[pix[0]][:3])  #trim off alpha, if it's there.
-                if pix[0] <= 254: 
+        imgnew = Image.new('RGBA', self.size, "white")
+        imgpix = img.load()
+        imgnewpix = imgnew.load()
+        for x in xrange(w):
+            for y in xrange(h):
+                pix = imgpix[x,y]
+                rgba = list(colors[pix])
+                if pix <= 254: 
                     alpha = self.opacity
                 else:
                     alpha = 0 
-                rgba.append(alpha) 
+                rgba.append(alpha)
 
-                img.putpixel((x,y), tuple(rgba))
+                imgnewpix[x,y] = tuple(rgba)
+        return imgnew
             
     def _ranges(self, points):
         """ walks the list of points and finds the 
@@ -178,7 +179,7 @@ class Heatmap:
 
 if __name__ == "__main__":
     pts = []
-    for x in range(400):
+    for x in xrange(400):
         pts.append((random.random(), random.random() ))
 
     print "Processing %d points..." % len(pts)
