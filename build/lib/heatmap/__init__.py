@@ -30,9 +30,6 @@ class Heatmap:
     """
     Create heatmaps from a list of 2D coordinates.
     
-    Heatmap requires the Python Imaging Library. The way I'm using PIL is
-    almost atrocious.  I'm embarassed, but it works, albeit slowly.
-
     Coordinates autoscale to fit within the image dimensions, so if there are 
     anomalies or outliers in your dataset, results won't be what you expect. 
 
@@ -47,27 +44,6 @@ class Heatmap:
         self.minXY = ()
         self.maxXY = ()
     
-    def putdot(self, imgpix, dotpix, x, y):
-        (sizeX, sizeY) = self.size
-        delta = int(self.dotsize/2)
-
-        # Handle clipping
-        maxX = self.dotsize - max(0, x + delta - sizeX)
-        maxY = self.dotsize - max(0, y + delta - sizeY)
-        minX = max(0, delta - x)
-        minY = max(0, delta - y)
-
-        # corner of where the dot image is on the image
-        xmin = x - delta
-        ymin = y - delta
-        # multiply algorithm = (imgpix1*imgpix2)/MAX
-        for i in xrange(minX, maxX):
-            for j in xrange(minY, maxY):
-                d = dotpix[i,j]
-                p = imgpix[xmin + i, ymin + j]
-                val = d*p/255
-                imgpix[xmin + i, ymin + j] = val
-            
     def heatmap(self, points, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic", algo="old"):
         """
         points  -> an iterable list of tuples, where the contents are the 
@@ -99,12 +75,6 @@ class Heatmap:
         if algo == "old":
             for x,y in points:
                 img.paste(0, self._translate([x,y]), dot)
-        else:
-            imgpix = img.load()
-            dotpix = dot.load()
-            for x,y in points:
-                (x, y) = self._translate([x, y])
-                self.putdot(imgpix, dotpix, x, y)
 
         colors = colorschemes.schemes[scheme]
         img.save("bw.png", "PNG")
@@ -141,8 +111,8 @@ class Heatmap:
             each point in the dataset"""
         img = Image.new("RGBA", (size,size), 'white')
         md = 0.5*math.sqrt( (size/2.0)**2 + (size/2.0)**2 )
-        for x in range(size):
-            for y in range(size):
+        for x in xrange(size):
+            for y in xrange(size):
                 d = math.sqrt( (x - size/2.0)**2 + (y - size/2.0)**2 )
                 rgbVal = int(200*d/md + 50)
                 rgba = (0,0,0, 255 - rgbVal)
@@ -158,8 +128,8 @@ class Heatmap:
         imgnew = Image.new('RGBA', self.size, "white")
         imgpix = img.load()
         imgnewpix = imgnew.load()
-        for x in range(w):
-            for y in range(h):
+        for x in xrange(w):
+            for y in xrange(h):
                 pix = imgpix[x,y]
                 rgba = list(colors[pix])
                 if pix <= 254: 
@@ -209,7 +179,7 @@ class Heatmap:
 
 if __name__ == "__main__":
     pts = []
-    for x in range(400):
+    for x in xrange(400):
         pts.append((random.random(), random.random() ))
 
     print "Processing %d points..." % len(pts)
