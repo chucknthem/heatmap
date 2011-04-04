@@ -44,7 +44,7 @@ class Heatmap:
         self.minXY = ()
         self.maxXY = ()
     
-    def heatmap(self, points, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic", algo="old"):
+    def heatmap(self, points, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic"):
         """
         points  -> an iterable list of tuples, where the contents are the 
                    x,y coordinates to plot. e.g., [(1, 1), (2, 2), (3, 3)]
