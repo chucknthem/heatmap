@@ -116,7 +116,6 @@ class Heatmap:
                 rgbVal = int(200*d/md + 50)
                 rgba = (0,0,0, 255 - rgbVal)
                 img.putpixel((x,y), rgba)
-        img.save("lol.png", "PNG")
         return img
 
     def _colorize(self, img, colors):
