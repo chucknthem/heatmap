@@ -5,9 +5,11 @@ This is fork of heatmap by jjguy. It's about 30 times faster than the original v
 
 ## Description
 heatmap is a python library for creating heatmaps.
+
 Works with gps coordinates and generates KML files for overlaying heatmaps on Google Earth.
 
 Full documentation at http://jjguy.com/heatmap
+
 See Also: http://code.google.com/p/gheat/
 
 ## Modifications to the original:
@@ -16,18 +18,21 @@ See Also: http://code.google.com/p/gheat/
  3. Allows generating a time sequenced kml file for visualising heatmaps over time.
 
 ### Generating a time sequenced heat map for Google Earth.
-hm = heatmap.Heatmap() 
-hm.animated_heatmapKML(
-  pointsets, 
-  outputfile, 
-  opacity=128,
-  dotsize=150, 
-  size=(2048, 2048),
-  scheme="classic") 
+
+    hm = heatmap.Heatmap() 
+    hm.animated_heatmapKML(
+      pointsets, 
+      outputfile, 
+      opacity=128,
+      dotsize=150, 
+      size=(2048, 2048),
+      scheme="classic") 
 
 Most parameters are the same as the heatmap() function described below. The only difference is the 'pointset' parameter which is defined as follows:
- pointset = [(begin, end, [lat, lng]), (begin, end, [lat, lng]), ...]
- where begin and end are dates in the format yyyy-mm-dd
+
+    pointset = [(begin, end, [lat, lng]), (begin, end, [lat, lng]), ...]
+
+where begin and end are dates in the format yyyy-mm-dd
 
 This will generate a single .kml file and n = len(pointset) .png files.
 
@@ -35,9 +40,9 @@ This will generate a single .kml file and n = len(pointset) .png files.
 
   heatmap() has only two required parameters:
 
-  A list of two-element tuples
-  The filename to save the resulting image
-  There are several optional parameters, with reasonable defaults:
+    A list of two-element tuples
+    The filename to save the resulting image
+    There are several optional parameters, with reasonable defaults:
        |  heatmap(self, points, fout, dotsize=150, opacity=128, size=(1024, 1024), scheme='classic')
        |      points  -> an iteratable list of tuples, where the contents are the
        |                 x,y coordinates to plot. e.g., [(1, 1), (2, 2), (3, 3)]
