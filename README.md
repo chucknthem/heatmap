@@ -12,6 +12,12 @@ Full documentation at http://jjguy.com/heatmap
 
 See Also: http://code.google.com/p/gheat/
 
+## Installation
+
+Either clone this git repo or download the source. Then install it as a normal python package:
+
+    python setup.py install
+
 ## Modifications to the original:
  1. New and faster heatmap generating algorithm.
  2. Fixed an issue with points at the border of the heatmap being clipped.
