@@ -7,9 +7,10 @@ import math
 import sys
 import colorschemes
 
-KML = """<?xml version="1.0" encoding="UTF-8"?>
+KML_START = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
-  <Folder>
+<Folder> """
+KML_OVERLAY = """
     <GroundOverlay>
       <Icon>
         <href>%s</href>
@@ -21,10 +22,28 @@ KML = """<?xml version="1.0" encoding="UTF-8"?>
         <west>%2.16f</west>
         <rotation>0</rotation>
       </LatLonBox>
-    </GroundOverlay>
-  </Folder>
-</kml>"""
+    </GroundOverlay>"""
+KML_TIMESPAN_OVERLAY = """
+    <GroundOverlay>
+      <name>%s</name>
+      <TimeSpan>
+        <begin>%s</begin>
+        <end>%s</end>
+      </TimeSpan>
+      <Icon>
+        <href>%s</href>
+      </Icon>
+      <LatLonBox>
+        <north>%2.16f</north>
+        <south>%2.16f</south>
+        <east>%2.16f</east>
+        <west>%2.16f</west>
+        <rotation>0</rotation>
+      </LatLonBox>
+    </GroundOverlay>"""
+KML_END = """</Folder></kml>"""
 
+KML = KML_START + KML_OVERLAY + KML_END
 
 class Heatmap:
     """
@@ -43,6 +62,20 @@ class Heatmap:
     def __init__(self):
         self.minXY = ()
         self.maxXY = ()
+
+    def _init(self, dotsize, opacity, size, scheme):
+        self.dotsize = dotsize
+        self.opacity = opacity
+        self.size = size
+        # Actual size of the image where heatmap points can be in to
+        # ensure that dots fit inside the image.
+        self.actual_size = (size[0] - dotsize, size[1] - dotsize)
+        if scheme not in self.schemes():
+            tmp = "Unknown color scheme: %s.  Available schemes: %s"  % (scheme, self.schemes())
+            raise Exception(tmp)
+
+        self.colors = colorschemes.schemes[scheme]
+        self.dot = self._buildDot(self.dotsize)
     
     def heatmap(self, points, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic"):
         """
@@ -59,27 +92,71 @@ class Heatmap:
                    Use schemes() to get list.  (images are in source distro)
         """
         
-        self.dotsize = dotsize
-        self.opacity = opacity
-        self.size = size
+        self._init(dotsize, opacity, size, scheme)
+
         self.imageFile = fout
- 
-        if scheme not in self.schemes():
-            tmp = "Unknown color scheme: %s.  Available schemes: %s"  % (scheme, self.schemes())                           
-            raise Exception(tmp)
-
         self.minXY, self.maxXY = self._ranges(points)
-        dot = self._buildDot(self.dotsize)
 
-        img = Image.new('L', self.size, 'white')
+        img = Image.new('L', self.size, 255)
         for x,y in points:
-            img.paste(0, self._translate([x,y]), dot)
+            img.paste(0, self._translate([x,y]), self.dot)
 
-        colors = colorschemes.schemes[scheme]
         img.save("bw.png", "PNG")
 
-        img = self._colorize(img, colors)
+        img = self._colorize(img, self.size, self.colors)
+
         img.save(fout, "PNG")
+
+
+    def animated_heatmapKML(self, points_list, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic"):
+        self._init(dotsize, opacity, size, scheme)
+        
+        i = 0
+        kml = KML_START
+        for start, end, points in points_list:
+            self.minXY, self.maxXY = self._ranges(points)
+
+            img = Image.new('L', self.size, 255)
+            for x,y in points:
+                img.paste(0, self._translate([x,y]), self.dot)
+
+
+            img = self._colorize(img, self.size, self.colors)
+            imgfile = "%s%d.png" % (fout, i)
+            img.save(imgfile, "PNG")
+
+            kml += self.make_timespan_overlay(imgfile, start, end)
+            i += 1
+
+        kml += KML_END
+        file(fout, "w").write(kml)
+            
+    def _get_kml_coords(self):
+        """Return the north, south, east, west coordinates to map our data
+        points onto google earth."""
+
+        # We have to extend the maxXY and minXY coordinates of the data set 
+        # to take into account the image's real size.
+
+        # Calculate the percent difference between half a dotsize
+        # and the actual_size. Then multiply that by maxXY - minXY to get the offset.
+        # The offset is the number we have to add or subtract to maxXY and minXY to
+        # account for the difference between image size and actual_size.
+        offsetx = self.dotsize / 2.0 / float(self.actual_size[0])
+        offsety = self.dotsize / 2.0 / float(self.actual_size[1])
+
+        offsetx = offsetx * (self.maxXY[0] - self.minXY[0])
+        offsety = offsety * (self.maxXY[1] - self.minXY[1])
+
+        north = self.maxXY[1] + offsety
+        south = self.minXY[1] - offsety
+        east = self.maxXY[0] + offsetx
+        west = self.minXY[0] - offsetx
+        return (north, south, east, west)
+
+    def make_timespan_overlay(self, img_file, begin, end):
+        (north, south, east, west) = self._get_kml_coords()
+        return KML_TIMESPAN_OVERLAY % (begin + " - " + end, begin, end, img_file, north, south, east, west)
 
     def saveKML(self, kmlFile):
         """ 
@@ -91,10 +168,7 @@ class Heatmap:
         """
 
         tilePath = os.path.basename(self.imageFile)
-        north = self.maxXY[1]
-        south = self.minXY[1]
-        east = self.maxXY[0]
-        west = self.minXY[0]
+        (north, south, east, west) = self._get_kml_coords()
         
         bytes = KML % (tilePath, north, south, east, west)
         file(kmlFile, "w").write(bytes)
@@ -108,7 +182,7 @@ class Heatmap:
     def _buildDot(self, size):
         """ builds a temporary image that is plotted for 
             each point in the dataset"""
-        img = Image.new("RGBA", (size,size), 'white')
+        img = Image.new("RGBA", (size,size), (0, 0, 0, 0))
         md = 0.5*math.sqrt( (size/2.0)**2 + (size/2.0)**2 )
         for x in xrange(size):
             for y in xrange(size):
@@ -118,23 +192,24 @@ class Heatmap:
                 img.putpixel((x,y), rgba)
         return img
 
-    def _colorize(self, img, colors):
+    def _colorize(self, img, size, colors):
         """ use the colorscheme selected to color the 
             image densities  """
-        finalVals = {}
         w,h = img.size
-        imgnew = Image.new('RGBA', self.size, "white")
+        imgnew = Image.new('RGBA', size, (255, 255, 255, 0))
         imgpix = img.load()
         imgnewpix = imgnew.load()
         for x in xrange(w):
             for y in xrange(h):
                 pix = imgpix[x,y]
+                if isinstance(pix, (list, tuple)):
+                    pix = pix[3]
                 rgba = list(colors[pix])
                 if pix <= 254: 
                     alpha = self.opacity
+                    rgba.append(alpha)
                 else:
-                    alpha = 0 
-                rgba.append(alpha)
+                    rgba = (255, 255, 255, 0)
 
                 imgnewpix[x,y] = tuple(rgba)
         return imgnew
@@ -152,9 +227,25 @@ class Heatmap:
             
         return ((minX, minY), (maxX, maxY))
 
+    def _untranslate(self, data_point):
+        """ Translates x,y coordinates from pixel offsets into 
+        data coordinates.
+        This is the inverse function of self._translate"""
+
+        x = data_point[0]
+        y = data_point[1]
+
+        x = x / float(self.actual_size[0])
+        y = 1 - y / float(self.actual_size[1])
+        
+        x = x * (self.maxXY[0] - self.minXY[0]) + self.minXY[0]
+        y = y * (self.maxXY[1] - self.minXY[1]) + self.minXY[1]
+        return (x, y)
+
     def _translate(self, point):
-        """ translates x,y coordinates from data set into 
-        pixel offsets."""
+        """ Translates x,y coordinates from data set into 
+        pixel offsets.
+        This is the inverse function of self._untranslate"""
         x = point[0]
         y = point[1]
 
@@ -162,16 +253,23 @@ class Heatmap:
         x = (x - self.minXY[0]) / float(self.maxXY[0] - self.minXY[0])
         y = (y - self.minXY[1]) / float(self.maxXY[1] - self.minXY[1])
 
-        #...and the map into our image size...
-        x = int(x*self.size[0])
-        y = int((1-y)*self.size[1])
+        #...and then map into our image size...
+        x = int(x*(self.actual_size[0]))
+        y = int((1-y)*(self.actual_size[1]))
          
-        # the upper-left corner of our dot is placed at
+        # The upper-left corner of our dot is placed at
         # the x,y coordinate we provide. 
         # we care about their center.  shift up and left so
         # the center of the dot is at the point we expect.
-        x = x - self.dotsize / 2
-        y = y - self.dotsize / 2
+        # x = x - self.dotsize / 2
+        # y = y - self.dotsize / 2
+        # Then we need to account for the actual size of the image
+        # that gets placed in the center of the image size
+        # specified by the user. the actual image size is the image
+        # minus half a dot size at on each edge, so the lines above 
+        # and below cancel out.
+        # x = x + self.dotsize / 2
+        # y = y + self.dotsize / 2
 
         return (x,y)
 
