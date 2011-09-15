@@ -101,8 +101,6 @@ class Heatmap:
         for x,y in points:
             img.paste(0, self._translate([x,y]), self.dot)
 
-        img.save("bw.png", "PNG")
-
         img = self._colorize(img, self.size, self.colors)
 
         img.save(fout, "PNG")
