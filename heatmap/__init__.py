@@ -158,7 +158,8 @@ class Heatmap:
 
     def make_timespan_overlay(self, img_file, begin, end):
         (north, south, east, west) = self._get_kml_coords()
-        return KML_TIMESPAN_OVERLAY % (begin + " - " + end, begin, end, img_file, north, south, east, west)
+        return KML_TIMESPAN_OVERLAY % (begin + " - " + end, begin, end,
+                                       os.path.basename(img_file), north, south, east, west)
 
     def saveKML(self, kmlFile):
         """ 
