@@ -123,6 +123,8 @@ class Heatmap:
 
         for start, end, points in points_list:
             self.minXY, self.maxXY = self._ranges(points)
+            if self.minXY == self.maxXY:
+                continue
             xpoints = [self._translate([x,y]) for x,y in points]
 
             imgfile = "%s%d.png" % (fout, i)
