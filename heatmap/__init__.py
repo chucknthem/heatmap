@@ -101,36 +101,40 @@ class Heatmap:
         for x,y in points:
             img.paste(0, self._translate([x,y]), self.dot)
 
-        img.save("bw.png", "PNG")
-
         img = self._colorize(img, self.size, self.colors)
 
         img.save(fout, "PNG")
 
 
-    def animated_heatmapKML(self, points_list, fout, dotsize=150, opacity=128, size=(1024,1024), scheme="classic"):
+    def animated_heatmapKML(self, points_list, fout, dotsize=150,
+                            opacity=128, size=(1024,1024), scheme="classic",
+                            executor=lambda f, o, s, e, p, i: f(o, s, e, p, i)):
         self._init(dotsize, opacity, size, scheme)
-        
+
         i = 0
         kml = KML_START
-        for start, end, points in points_list:
-            self.minXY, self.maxXY = self._ranges(points)
-
-            img = Image.new('L', self.size, 255)
+        def processPoint(ob, start, end, points, imgfile):
+            img = Image.new('L', ob.size, 255)
             for x,y in points:
-                img.paste(0, self._translate([x,y]), self.dot)
+                img.paste(0, (x,y), ob.dot)
 
-
-            img = self._colorize(img, self.size, self.colors)
-            imgfile = "%s%d.png" % (fout, i)
+            img = ob._colorize(img, ob.size, ob.colors)
             img.save(imgfile, "PNG")
 
+        for start, end, points in points_list:
+            self.minXY, self.maxXY = self._ranges(points)
+            if self.minXY == self.maxXY:
+                continue
+            xpoints = [self._translate([x,y]) for x,y in points]
+
+            imgfile = "%s%d.png" % (fout, i)
+            executor(processPoint, self, start, end, xpoints, imgfile)
             kml += self.make_timespan_overlay(imgfile, start, end)
             i += 1
 
         kml += KML_END
         file(fout, "w").write(kml)
-            
+
     def _get_kml_coords(self):
         """Return the north, south, east, west coordinates to map our data
         points onto google earth."""
@@ -156,7 +160,8 @@ class Heatmap:
 
     def make_timespan_overlay(self, img_file, begin, end):
         (north, south, east, west) = self._get_kml_coords()
-        return KML_TIMESPAN_OVERLAY % (begin + " - " + end, begin, end, img_file, north, south, east, west)
+        return KML_TIMESPAN_OVERLAY % (begin + " - " + end, begin, end,
+                                       os.path.basename(img_file), north, south, east, west)
 
     def saveKML(self, kmlFile):
         """ 
